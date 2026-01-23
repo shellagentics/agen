@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="0.1.0"
+DEFAULT_MODEL="claude-sonnet-4-20250514"
+
+# Exit codes as named constants
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
+EXIT_NEEDS_INPUT=2
+EXIT_LIMIT=3
+
+show_help() {
+  cat <<'EOF'
+agent - Unix-native AI agent CLI
+
+SYNOPSIS
+  agent [OPTIONS] [PROMPT]
+  command | agent [OPTIONS] [PROMPT]
+
+DESCRIPTION
+  A CLI tool that brings AI agents into Unix pipelines. Agents compose
+  with other tools rather than replacing the shell.
+
+OPTIONS
+  --help              Show this help message
+  --version           Show version
+  --batch             No interactive prompts; exit 2 if input needed
+  --json              Output JSON instead of plain text
+  --state=FILE        State file for persistence/resume
+  --resume            Continue from state file
+  --checkpoint        Save state after completion
+  --max-turns=N       Maximum agentic loop iterations (default: 1)
+  --tools=LIST        Tools to enable (default: none). Available: bash
+  --model=MODEL       Model to use (default: claude-sonnet-4-20250514)
+  --verbose           Debug output on stderr
+
+EXIT CODES
+  0   SUCCESS       Task completed
+  1   FAILURE       Error occurred
+  2   NEEDS_INPUT   Human input required (batch mode)
+  3   LIMIT         Hit max-turns
+
+EXAMPLES
+  # Simple query
+  agent "Explain Unix pipes"
+
+  # Pipeline usage
+  cat error.log | agent "diagnose this error"
+
+  # Stateful conversation
+  agent --state=chat.json "Start a new project"
+  agent --state=chat.json --resume "Add tests"
+
+  # Agentic mode
+  agent --tools=bash --max-turns=5 "Create a hello world script"
+
+ENVIRONMENT
+  ANTHROPIC_API_KEY   Required. Your Anthropic API key.
+
+EOF
+}
+
+show_version() {
+  echo "agent $VERSION"
+}
+
+die() {
+  echo "agent: $*" >&2
+  exit $EXIT_FAILURE
+}
+
+# Main argument parsing
+main() {
+  # Handle no arguments
+  if [[ $# -eq 0 ]]; then
+    die "No prompt provided. Use --help for usage."
+  fi
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --help)
+        show_help
+        exit $EXIT_SUCCESS
+        ;;
+      --version)
+        show_version
+        exit $EXIT_SUCCESS
+        ;;
+      --batch|--json|--resume|--checkpoint|--verbose)
+        # Flags recognized but not yet implemented
+        die "Option $1 not yet implemented"
+        ;;
+      --state=*|--max-turns=*|--tools=*|--model=*)
+        # Options with values recognized but not yet implemented
+        die "Option ${1%%=*} not yet implemented"
+        ;;
+      --*)
+        die "Unknown option: $1"
+        ;;
+      *)
+        # Positional argument (prompt)
+        die "Not yet implemented"
+        ;;
+    esac
+  done
+}
+
+main "$@"
