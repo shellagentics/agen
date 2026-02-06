@@ -75,8 +75,40 @@ test_case "--version exits 0" 0 "$AGEN" --version
 test_output_contains "--version contains version number" "0.3.0" "$AGEN" --version
 
 test_case "no arguments exits 1" 1 "$AGEN"
-test_case "prompt without implementation exits 1" 1 "$AGEN" "anything"
 test_case "unknown option exits 1" 1 "$AGEN" --unknown-flag
+
+echo ""
+echo "=== Stub Backend ==="
+
+# Use a temp file for the stub counter so tests don't interfere with anything
+STUB_COUNTER_FILE=$(mktemp)
+rm -f "$STUB_COUNTER_FILE"
+export AGEN_STUB_FILE="$STUB_COUNTER_FILE"
+
+# First call should return 1
+test_output_contains "stub returns 'LLM return 1' on first call" "LLM return 1" \
+  env AGEN_BACKEND=stub "$AGEN" "test prompt"
+
+# Second call should return 2 (counter increments)
+test_output_contains "stub counter increments to 2" "LLM return 2" \
+  env AGEN_BACKEND=stub "$AGEN" "test prompt"
+
+# Third call should return 3
+test_output_contains "stub counter increments to 3" "LLM return 3" \
+  env AGEN_BACKEND=stub "$AGEN" "another prompt"
+
+# Reset counter by deleting the file
+rm -f "$STUB_COUNTER_FILE"
+test_output_contains "stub counter resets after file delete" "LLM return 1" \
+  env AGEN_BACKEND=stub "$AGEN" "test prompt"
+
+# Piped input is consumed (doesn't block)
+test_output_contains "stub handles piped input" "LLM return 2" \
+  bash -c 'echo "piped data" | AGEN_BACKEND=stub AGEN_STUB_FILE='"$STUB_COUNTER_FILE"' '"$AGEN"' "process this"'
+
+# Cleanup
+rm -f "$STUB_COUNTER_FILE"
+unset AGEN_STUB_FILE
 
 # Summary
 echo ""

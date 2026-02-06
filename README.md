@@ -31,6 +31,7 @@ agen supports multiple LLM backends:
 | `claude-code` | `claude` CLI | Max subscription | Daily use, no API costs |
 | `llm` | `llm` CLI | API costs | Multi-provider flexibility |
 | `api` | Direct curl | API costs | No dependencies |
+| `stub` | None | Free | Testing, demos, development |
 
 Auto-detection tries them in order. Override with `--backend=` or `AGEN_BACKEND=`.
 
@@ -144,28 +145,21 @@ The layered prompt goes to the LLM. Response goes to stdout. Errors go to stderr
 
 This is the Unix way: stdin/stdout/stderr, composable with pipes, scriptable.
 
-## Skills
+## Stub Backend
 
-Skills are shell scripts that orchestrate agen for specific workflows. Unlike prompt-based skills (Vision A), these are **programs that use the agent**.
-
-See [agen-skills](https://github.com/shellagentics/agen-skills) for a collection of ready-to-use skills.
-
-### The Pattern
+The `stub` backend returns `"LLM return N"` with an incrementing counter. No LLM calls are made. This makes the entire toolkit runnable without API keys or subscriptions — useful for testing, demos, and understanding the architecture.
 
 ```bash
-#!/usr/bin/env bash
-# A skill is just a script that calls agen
+# Run with stub backend
+AGEN_BACKEND=stub agen "hello"       # → "LLM return 1"
+AGEN_BACKEND=stub agen "hello again" # → "LLM return 2"
 
-diff=$(git diff --cached)
-result=$(echo "$diff" | agen --system=reviewer.md "review this")
+# Reset the counter
+rm /tmp/agen-stub-counter
 
-if echo "$result" | grep -q "CRITICAL"; then
-  echo "Blocking issues found"
-  exit 1
-fi
+# Custom counter file
+AGEN_STUB_FILE=/tmp/my-counter AGEN_BACKEND=stub agen "test"
 ```
-
-The shell orchestrates. agen is one tool among many.
 
 ## Directory Structure
 

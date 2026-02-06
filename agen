@@ -45,7 +45,7 @@ DESCRIPTION
 OPTIONS
   --help              Show this help message
   --version           Show version
-  --backend=BACKEND   LLM backend: claude-code, llm, api, auto (default: auto)
+  --backend=BACKEND   LLM backend: claude-code, llm, api, stub, auto (default: auto)
   --model=MODEL       Model to use (default: claude-sonnet-4-20250514)
   --system=STRING     System prompt string to prepend
   --system-file=FILE  System prompt file to prepend
@@ -75,9 +75,10 @@ EXAMPLES
   agen --backend=claude-code "explain this"
 
 ENVIRONMENT
-  AGEN_BACKEND        Backend to use (claude-code, llm, api, auto)
+  AGEN_BACKEND        Backend to use (claude-code, llm, api, stub, auto)
   ANTHROPIC_API_KEY   Required for api backend
   LLM_MODEL           Model override for llm backend
+  AGEN_STUB_FILE      Counter file for stub backend (default: /tmp/agen-stub-counter)
 
 BACKENDS
   claude-code   Uses Claude Code CLI in print mode. Requires 'claude' command.
@@ -88,6 +89,9 @@ BACKENDS
 
   api           Direct Anthropic API calls. Requires ANTHROPIC_API_KEY.
                 Uses curl and jq.
+
+  stub          Returns "LLM return N" with an incrementing counter.
+                No LLM calls. For testing, demos, and development.
 
   auto          Try claude-code, then llm, then api. (default)
 
@@ -146,6 +150,23 @@ call_llm_cli() {
   echo "$prompt" | llm -m "${LLM_MODEL:-$MODEL}"
 }
 
+# Stub backend — returns a counter, no LLM calls
+# Useful for testing, demos, and development without API costs.
+call_stub() {
+  local prompt="$1"
+  local counter_file="${AGEN_STUB_FILE:-/tmp/agen-stub-counter}"
+
+  local count=1
+  if [[ -f "$counter_file" ]]; then
+    count=$(( $(cat "$counter_file") + 1 ))
+  fi
+  echo "$count" > "$counter_file"
+
+  verbose "[STUB] received $(echo "$prompt" | wc -c | tr -d ' ') bytes, returning count $count"
+
+  echo "LLM return $count"
+}
+
 # Direct Anthropic API
 call_anthropic_api() {
   local prompt="$1"
@@ -192,6 +213,9 @@ call_llm() {
     api)
       call_anthropic_api "$prompt"
       ;;
+    stub)
+      call_stub "$prompt"
+      ;;
     auto)
       if command -v claude &>/dev/null; then
         call_claude_code "$prompt"
@@ -204,7 +228,7 @@ call_llm() {
       fi
       ;;
     *)
-      die "Unknown backend: $backend (use: claude-code, llm, api, auto)"
+      die "Unknown backend: $backend (use: claude-code, llm, api, stub, auto)"
       ;;
   esac
 }
